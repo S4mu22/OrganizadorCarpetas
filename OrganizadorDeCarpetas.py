@@ -115,3 +115,71 @@ def contar_archivos_recursivo(ruta: str) -> int:
         elif os.path.isfile(ruta_elemento):
             total += 1
     return total
+def mostrar_cabecera(consola: Console) -> None:
+    """Muestra la cabecera estilizada mediante rich."""
+    consola.print(Panel("[bold cyan]ORGANIZADOR AUTOMÁTICO DE CARPETAS[/bold cyan]", expand=False, border_style="cyan"))
+
+
+def mostrar_informe(consola: Console, movidos: int, tamano_total: int, en_origen: int, en_destino: int, historial: list) -> None:
+    """Presenta el informe final y la tabla de movimientos con rich."""
+    consola.print("[bold green]✔ Clasificación terminada.[/bold green]\n")
+    consola.print("[bold magenta]Informe final[/bold magenta]")
+
+    tabla_resumen = Table()
+    tabla_resumen.add_column("Concepto", style="cyan", no_wrap=True)
+    tabla_resumen.add_column("Valor", style="white")
+
+    tabla_resumen.add_row("Archivos movidos", str(movidos))
+    tabla_resumen.add_row("Tamaño total movido", tamano_legible(tamano_total))
+
+    color_origen = "green" if en_origen == 0 else "red"
+    tabla_resumen.add_row("Archivos que quedan en el origen", f"[{color_origen}]{en_origen}[/{color_origen}]")
+    tabla_resumen.add_row("Archivos en el destino (con subcarpetas)", str(en_destino))
+
+    consola.print(tabla_resumen)
+    consola.print("\n[bold magenta]Movimientos realizados[/bold magenta]")
+
+    tabla_movimientos = Table()
+    tabla_movimientos.add_column("Nº", style="dim", width=4)
+    tabla_movimientos.add_column("Origen → Destino", style="yellow")
+
+    for i, movimiento in enumerate(historial, start=1):
+        tabla_movimientos.add_row(str(i), movimiento)
+
+    consola.print(tabla_movimientos)
+
+
+def main() -> None:
+    """Función principal del programa."""
+    consola = Console()
+    mostrar_cabecera(consola)
+
+    ruta_origen = Prompt.ask("[bold yellow]Carpeta de origen[/bold yellow]")
+    ruta_destino = Prompt.ask("[bold yellow]Carpeta de destino[/bold yellow]")
+
+    if not os.path.exists(ruta_origen) or not os.path.isdir(ruta_origen):
+        consola.print(Panel("[bold red]La carpeta de origen no existe o no es una carpeta válida.[/bold red]", border_style="red"))
+        return
+
+    if os.path.exists(ruta_destino) and not os.path.isdir(ruta_destino):
+        consola.print(Panel("[bold red]La ruta de destino existe pero no es una carpeta válida.[/bold red]", border_style="red"))
+        return
+
+    if una_dentro_de_otra(ruta_origen, ruta_destino):
+        consola.print(Panel("[bold red]Origen y destino no pueden ser la misma carpeta ni estar una dentro de la otra.[/bold red]", border_style="red"))
+        return
+
+    historial = []
+
+    with consola.status("[bold green]Clasificando archivos...[/bold green]"):
+        bytes_totales = clasificar_carpeta_recursivo(ruta_origen, ruta_destino, historial)
+
+    archivos_origen_restantes = contar_archivos_recursivo(ruta_origen)
+    archivos_destino_totales = contar_archivos_recursivo(ruta_destino)
+    archivos_movidos = len(historial)
+
+    mostrar_informe(consola, archivos_movidos, bytes_totales, archivos_origen_restantes, archivos_destino_totales, historial)
+
+
+if __name__ == "__main__":
+    main()
